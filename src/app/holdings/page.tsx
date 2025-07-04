@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Box, Button, Flex, Heading, Input, Table, Thead, Tbody, Tr, Th, Td, TableContainer, VStack, Text, useColorModeValue } from "@chakra-ui/react";
 
 interface Holding {
   id: string;
@@ -154,30 +155,30 @@ export default function HoldingsPage() {
   const avgHold = holdTimes.length ? (holdTimes.reduce((a, b) => a + b, 0) / holdTimes.length) : 0;
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 0", fontFamily: 'Inter, Arial, sans-serif', background: '#f8fafc', minHeight: '100vh' }}>
-      <h2 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: 24, textAlign: 'center', letterSpacing: -1 }}>Holdings</h2>
-      <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 24, minWidth: 200, textAlign: 'center' }}>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Total Value (Open)</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: '#2563eb' }}>${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 24, minWidth: 200, textAlign: 'center' }}>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Total Realized P/L</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: totalRealized >= 0 ? '#16a34a' : '#dc2626' }}>{totalRealized >= 0 ? '+' : ''}${totalRealized.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 24, minWidth: 200, textAlign: 'center' }}>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Total Unrealized P/L</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: totalUnrealized >= 0 ? '#16a34a' : '#dc2626' }}>{totalUnrealized >= 0 ? '+' : ''}${totalUnrealized.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 24, minWidth: 200, textAlign: 'center' }}>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Win Rate</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: '#2563eb' }}>{winRate.toFixed(1)}%</div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px #0001', padding: 24, minWidth: 200, textAlign: 'center' }}>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Avg Hold (days)</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: '#2563eb' }}>{avgHold.toFixed(1)}</div>
-        </div>
-      </div>
+    <Box maxW="900px" mx="auto" py={8} fontFamily="Inter, Arial, sans-serif" bg={useColorModeValue('#f8fafc', 'gray.900')} minH="100vh">
+      <Heading as="h2" size="xl" fontWeight={700} mb={8} textAlign="center" letterSpacing={-1}>Holdings</Heading>
+      <Flex gap={6} justify="center" mb={10} flexWrap="wrap">
+        <Box bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={8} minW={200} textAlign="center">
+          <Text color="gray.500" fontSize={15}>Total Value (Open)</Text>
+          <Text fontWeight={700} fontSize={24} color="blue.600">${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+        </Box>
+        <Box bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={8} minW={200} textAlign="center">
+          <Text color="gray.500" fontSize={15}>Total Realized P/L</Text>
+          <Text fontWeight={700} fontSize={24} color={totalRealized >= 0 ? 'green.500' : 'red.500'}>{totalRealized >= 0 ? '+' : ''}${totalRealized.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+        </Box>
+        <Box bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={8} minW={200} textAlign="center">
+          <Text color="gray.500" fontSize={15}>Total Unrealized P/L</Text>
+          <Text fontWeight={700} fontSize={24} color={totalUnrealized >= 0 ? 'green.500' : 'red.500'}>{totalUnrealized >= 0 ? '+' : ''}${totalUnrealized.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+        </Box>
+        <Box bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={8} minW={200} textAlign="center">
+          <Text color="gray.500" fontSize={15}>Win Rate</Text>
+          <Text fontWeight={700} fontSize={24} color="blue.600">{winRate.toFixed(1)}%</Text>
+        </Box>
+        <Box bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={8} minW={200} textAlign="center">
+          <Text color="gray.500" fontSize={15}>Avg Hold (days)</Text>
+          <Text fontWeight={700} fontSize={24} color="blue.600">{avgHold.toFixed(1)}</Text>
+        </Box>
+      </Flex>
       <form onSubmit={handleSubmit} style={{ marginBottom: 32, background: "#fff", padding: 24, borderRadius: 12, boxShadow: '0 2px 12px #0001', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: 'wrap' }}>
           <input name="ticker" value={form.ticker} onChange={handleChange} placeholder="Ticker (AAPL)" required style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16, textTransform: 'uppercase' }} />
@@ -279,6 +280,6 @@ export default function HoldingsPage() {
           th, td { padding: 6px 4px !important; }
         }
       `}</style>
-    </main>
+    </Box>
   );
 } 

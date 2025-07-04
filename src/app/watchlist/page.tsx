@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Box, Button, Flex, Heading, Text, VStack, useColorModeValue } from "@chakra-ui/react";
 
 interface TickerInfo {
   symbol: string;
@@ -60,58 +61,48 @@ export default function WatchlistPage() {
   const avgProfit = count ? (totalProfit / count) : 0;
 
   return (
-    <main style={{ maxWidth: 520, margin: "0 auto", padding: "2rem 0", fontFamily: 'Inter, Arial, sans-serif' }}>
-      <h2 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: 24, textAlign: 'center', letterSpacing: -1 }}>Watchlist</h2>
+    <Box maxW="520px" mx="auto" py={8} fontFamily="Inter, Arial, sans-serif">
+      <Heading as="h2" size="xl" fontWeight={700} mb={8} textAlign="center" letterSpacing={-1}>Watchlist</Heading>
       {count > 0 && (
-        <div style={{
-          background: avgProfit >= 0 ? '#f0fdf4' : '#fef2f2',
-          color: avgProfit >= 0 ? '#16a34a' : '#dc2626',
-          borderRadius: 10,
-          fontWeight: 600,
-          fontSize: 18,
-          textAlign: 'center',
-          marginBottom: 18,
-          padding: '10px 0',
-          border: '1px solid #e5e7eb',
-        }}>
+        <Box bg={avgProfit >= 0 ? 'green.50' : 'red.50'} color={avgProfit >= 0 ? 'green.600' : 'red.600'} borderRadius={10} fontWeight={600} fontSize={18} textAlign="center" mb={6} py={2} borderWidth={1} borderColor="gray.200">
           Overall Profit/Loss: {avgProfit >= 0 ? '+' : ''}{avgProfit.toFixed(2)}%
-        </div>
+        </Box>
       )}
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
-        <button onClick={handleRefresh} disabled={refreshing} style={{background:'#f3f4f6',color:'#2563eb',border:'none',borderRadius:6,padding:'6px 16px',fontWeight:500,cursor:refreshing?'not-allowed':'pointer',fontSize:15}}>
+      <Flex justify="flex-end" mb={4}>
+        <Button onClick={handleRefresh} isLoading={refreshing} colorScheme="blue" variant="outline" size="sm">
           {refreshing ? 'Refreshing...' : 'Refresh All'}
-        </button>
-      </div>
+        </Button>
+      </Flex>
       {tickers.length === 0 ? (
-        <div style={{ background: "#f9fafb", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 32, textAlign: "center", color: '#888' }}>
+        <Box bg="gray.50" borderRadius={12} boxShadow="md" p={8} textAlign="center" color="gray.400">
           No tickers in your watchlist. Add a holding to get started.
-        </div>
+        </Box>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <VStack as="ul" spacing={4} align="stretch">
           {tickers.map((ticker) => {
             const d = info[ticker] || {};
             return (
-              <li key={ticker} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 20, display: 'flex', alignItems: 'center', gap: 18, transition: 'box-shadow 0.2s', border: '1px solid #f1f1f1' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 18, letterSpacing: -0.5 }}>{ticker} {d.shortName && <span style={{ color: '#888', fontWeight: 400, fontSize: 15 }}>({d.shortName})</span>}</div>
-                  {d.regularMarketPrice && <div style={{ fontSize: 15, color: '#2563eb', marginTop: 2 }}>Current: <b>${d.regularMarketPrice}</b> {d.currency}</div>}
-                  <div style={{ fontSize: 13, color: '#888', marginTop: 2, display: 'flex', gap: 12 }}>
-                    {d.open !== undefined && <span>Open: ${d.open}</span>}
-                    {d.high !== undefined && <span>High: ${d.high}</span>}
-                    {d.low !== undefined && <span>Low: ${d.low}</span>}
-                    {d.previousClose !== undefined && <span>Prev Close: ${d.previousClose}</span>}
-                    {d.changePercent !== undefined && <span>Change: {d.changePercent}%</span>}
-                  </div>
-                  {!d.regularMarketPrice && <div style={{ color: '#e53e3e', fontSize: 14, marginTop: 2 }}>Could not load Alpha Vantage data for this ticker.</div>}
-                </div>
-              </li>
+              <Box as="li" key={ticker} bg={useColorModeValue('white', 'gray.800')} borderRadius={12} boxShadow="md" p={6} display="flex" alignItems="center" gap={6} borderWidth={1} borderColor="gray.100">
+                <Box flex={1}>
+                  <Text fontWeight={600} fontSize={18} letterSpacing={-0.5}>{ticker} {d.shortName && <Text as="span" color="gray.400" fontWeight={400} fontSize={15}>({d.shortName})</Text>}</Text>
+                  {d.regularMarketPrice && <Text fontSize={15} color="blue.600" mt={1}>Current: <b>${d.regularMarketPrice}</b> {d.currency}</Text>}
+                  <Flex fontSize={13} color="gray.400" mt={1} gap={4} wrap="wrap">
+                    {d.open !== undefined && <Text>Open: ${d.open}</Text>}
+                    {d.high !== undefined && <Text>High: ${d.high}</Text>}
+                    {d.low !== undefined && <Text>Low: ${d.low}</Text>}
+                    {d.previousClose !== undefined && <Text>Prev Close: ${d.previousClose}</Text>}
+                    {d.changePercent !== undefined && <Text>Change: {d.changePercent}%</Text>}
+                  </Flex>
+                  {!d.regularMarketPrice && <Text color="red.400" fontSize={14} mt={1}>Could not load Alpha Vantage data for this ticker.</Text>}
+                </Box>
+              </Box>
             );
           })}
-        </ul>
+        </VStack>
       )}
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
-    </main>
+    </Box>
   );
 } 
