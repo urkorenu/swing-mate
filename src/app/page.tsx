@@ -80,6 +80,8 @@ export default function Dashboard() {
   let worst: Holding | null = null;
   let bestPL = -Infinity;
   let worstPL = Infinity;
+  let bestPLValue = 0;
+  let worstPLValue = 0;
   openHoldings.forEach(h => {
     const d = info[h.ticker] || {};
     if (d.regularMarketPrice && h.quantity) {
@@ -90,8 +92,8 @@ export default function Dashboard() {
       totalCost += cost;
       const plPercent = h.entryPrice ? ((d.regularMarketPrice - h.entryPrice) / h.entryPrice) * 100 : null;
       if (plPercent !== null) {
-        if (plPercent > bestPL) { bestPL = plPercent; best = h; }
-        if (plPercent < worstPL) { worstPL = plPercent; worst = h; }
+        if (plPercent > bestPL) { bestPL = plPercent; best = h; bestPLValue = pl; }
+        if (plPercent < worstPL) { worstPL = plPercent; worst = h; worstPLValue = pl; }
       }
     }
   });
@@ -133,8 +135,8 @@ export default function Dashboard() {
           <SummaryCard label="Open Holdings" value={openHoldings.length} color="gray.500" icon={<Icon as={StarIcon} color="gray.400" boxSize={6} />} />
           {hasValidOpen ? (
             <>
-              {best !== null && <SummaryCard label="Best" value={<PLValue value={bestPL} percent={bestPL} ticker={best.ticker} />} color="green.400" icon={<Icon as={StarIcon} color="green.400" boxSize={6} />} />}
-              {worst !== null && <SummaryCard label="Worst" value={<PLValue value={worstPL} percent={worstPL} ticker={worst.ticker} />} color="red.400" icon={<Icon as={WarningIcon} color="red.400" boxSize={6} />} />}
+              {best !== null && <SummaryCard label="Best" value={<PLValue value={bestPLValue} percent={bestPL} ticker={(best as Holding).ticker} />} color="green.400" icon={<Icon as={StarIcon} color="green.400" boxSize={9} />} />}
+              {worst !== null && <SummaryCard label="Worst" value={<PLValue value={worstPLValue} percent={worstPL} ticker={(worst as Holding).ticker} />} color="red.400" icon={<Icon as={WarningIcon} color="red.400" boxSize={9} />} />}
             </>
           ) : (
             <SummaryCard label="Best/Worst" value="No open holdings" color="gray.400" icon={<Icon as={WarningIcon} color="gray.400" boxSize={6} />} />
@@ -226,30 +228,53 @@ export default function Dashboard() {
 function SummaryCard({ label, value, color, icon }: { label: string; value: any; color: string; icon?: any }) {
   return (
     <Box
-      bg={useColorModeValue('white', 'gray.700')}
+      bgGradient={useColorModeValue(
+        'linear(to-br, white, blue.50, gray.100)',
+        'linear(to-br, gray.700, blue.900, gray.800)'
+      )}
       borderRadius="2xl"
-      boxShadow="md"
-      p={6}
-      minW="170px"
+      boxShadow="2xl"
+      p={9}
+      minW="220px"
+      maxW="260px"
       textAlign="center"
       borderWidth={2}
       borderColor={color}
       display="flex"
       flexDirection="column"
       alignItems="center"
-      gap={1}
+      gap={3}
+      transition="transform 0.18s, box-shadow 0.18s"
+      _hover={{
+        transform: 'translateY(-6px) scale(1.04)',
+        boxShadow: '3xl',
+        borderColor: useColorModeValue('blue.400', 'blue.300'),
+      }}
+      _active={{
+        transform: 'scale(0.97)',
+      }}
     >
-      <Box fontSize="2xl" mb={1}>{icon}</Box>
-      <Text fontSize="xs" fontWeight="medium" color="gray.500">{label}</Text>
-      <Text fontWeight="bold" fontSize="2xl" color={color}>{value}</Text>
+      <Box fontSize="4xl" mb={3} display="flex" alignItems="center" justifyContent="center">{icon}</Box>
+      <Text fontSize="md" fontWeight="semibold" color={useColorModeValue('gray.600', 'gray.300')} mb={2} noOfLines={1} letterSpacing={0.5}>{label}</Text>
+      <Text fontWeight="extrabold" fontSize="2.6xl" color={color} wordBreak="break-word" letterSpacing={-1}>{value}</Text>
     </Box>
   );
 }
 
 function PLValue({ value, percent, ticker }: { value: number; percent: number; ticker?: string }) {
+  if (ticker) {
+    // For Best/Worst cards: stack vertically for clarity
+    return (
+      <VStack spacing={0} align="center" justify="center" w="full">
+        <Text fontWeight="bold" color="blue.600" fontSize={{ base: 'md', md: 'lg' }} wordBreak="break-word" maxW="120px" textAlign="center">{ticker}</Text>
+        <Text fontWeight="bold" color={value >= 0 ? "green.600" : "red.600"} fontSize={{ base: 'lg', md: 'xl' }}>{value >= 0 ? '+' : ''}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+        <Text fontWeight="bold" color={percent >= 0 ? "green.600" : "red.600"} fontSize={{ base: 'sm', md: 'md' }}>({percent >= 0 ? '+' : ''}{percent.toFixed(2)}%)</Text>
+      </VStack>
+    );
+  }
+  // Default: horizontal for other cards
   return (
     <HStack spacing={1} justify="center">
-      {ticker && <Text fontWeight="bold" color="blue.600">{ticker}</Text>}
       <Text fontWeight="bold" color={value >= 0 ? "green.600" : "red.600"}>{value >= 0 ? '+' : ''}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
       <Text fontWeight="bold" color={percent >= 0 ? "green.600" : "red.600"}>({percent >= 0 ? '+' : ''}{percent.toFixed(2)}%)</Text>
     </HStack>
