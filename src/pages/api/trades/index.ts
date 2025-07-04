@@ -8,6 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     // List all trades
     const trades = await prisma.trade.findMany({ orderBy: { dateEntry: 'desc' } });
+    res.setHeader('Cache-Control', 'public, max-age=300');
     return res.status(200).json(trades);
   }
   if (req.method === 'POST') {

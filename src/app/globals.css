@@ -38,3 +38,15 @@ a {
   }
 }
 
+/* Remove page-specific layout styles, keep only resets and utility classes */
+
+/* Example: Remove max-width, padding, background from body or main */
+body, main {
+  /* Remove custom max-width, padding, background */
+  max-width: unset !important;
+  padding: unset !important;
+  background: unset !important;
+}
+
+/* ... keep other global resets ... */
+

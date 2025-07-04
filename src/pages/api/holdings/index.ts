@@ -9,6 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: { userId: DUMMY_USER_ID },
       orderBy: { dateEntry: 'desc' },
     });
+    res.setHeader('Cache-Control', 'public, max-age=300');
     return res.status(200).json(holdings);
   }
   if (req.method === 'POST') {
