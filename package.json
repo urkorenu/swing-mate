@@ -3,23 +3,42 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:create": "psql -U $USER -tc \"SELECT 1 FROM pg_database WHERE datname = 'swingmate'\" | grep -q 1 || createdb swingmate",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:setup": "npm run db:create && npm run db:migrate"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "next": "15.3.4"
+     "@chakra-ui/react": "^2.8.2",
+     "@chakra-ui/icons": "^2.0.18",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@next-auth/prisma-adapter": "^1.0.7",
+    "@prisma/client": "^6.10.1",
+    "framer-motion": "^12.19.1",
+    "lightningcss": "^1.29.0",
+    "next": "^15.3.4",
+    "next-auth": "^4.24.11",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.16.2",
+    "prisma": "^6.10.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4.1.10",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "@eslint/eslintrc": "^3"
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.45.0",
+    "eslint-config-next": "13.4.19",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.10",
+    "typescript": "^5"
   }
 }

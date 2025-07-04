@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: swingmate
+      POSTGRES_PASSWORD: swingmate
+      POSTGRES_DB: swingmate
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  web:
+    build: .
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgres://swingmate:swingmate@db:5432/swingmate
+      NEXTAUTH_URL: http://localhost:3000
+      ALPHA_VANTAGE_API_KEY: your_alpha_vantage_key_here
+    depends_on:
+      - db
+volumes:
+  db_data: 

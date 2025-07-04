@@ -1,95 +1,257 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Center,
+  Container,
+  Flex,
+  Heading,
+  Stack,
+  Text,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Badge,
+  useColorModeValue,
+  SimpleGrid,
+  VStack,
+  HStack,
+  Divider,
+  Icon,
+  chakra,
+  List,
+  ListItem,
+  ListIcon
+} from "@chakra-ui/react";
+import { ArrowUpIcon, ArrowDownIcon, StarIcon, WarningIcon } from "@chakra-ui/icons";
 
-export default function Home() {
+interface Holding {
+  id: string;
+  ticker: string;
+  entryPrice: number;
+  dateEntry: string;
+  quantity: number;
+  sellPrice?: number;
+  sellDate?: string;
+}
+
+interface TickerInfo {
+  symbol: string;
+  shortName?: string;
+  regularMarketPrice?: number;
+}
+
+export default function Dashboard() {
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [info, setInfo] = useState<Record<string, TickerInfo>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/holdings")
+      .then((res) => res.json())
+      .then((data) => {
+        setHoldings(data);
+        data.forEach((h: Holding) => {
+          if (!h.sellPrice && !h.sellDate) fetchInfo(h.ticker);
+        });
+        setLoading(false);
+      });
+  }, []);
+
+  const fetchInfo = async (ticker: string) => {
+    const res = await fetch(`/api/alpha?ticker=${ticker}`);
+    const data = await res.json();
+    if (!data.error) {
+      setInfo((prev) => ({ ...prev, [ticker]: data }));
+    }
+  };
+
+  // Only open holdings for best/worst/summary
+  const openHoldings = holdings.filter(h => !h.sellPrice && !h.sellDate);
+  let totalValue = 0;
+  let totalCost = 0;
+  let best: Holding | null = null;
+  let worst: Holding | null = null;
+  let bestPL = -Infinity;
+  let worstPL = Infinity;
+  openHoldings.forEach(h => {
+    const d = info[h.ticker] || {};
+    if (d.regularMarketPrice && h.quantity) {
+      const value = d.regularMarketPrice * h.quantity;
+      const cost = h.entryPrice * h.quantity;
+      const pl = value - cost;
+      totalValue += value;
+      totalCost += cost;
+      const plPercent = h.entryPrice ? ((d.regularMarketPrice - h.entryPrice) / h.entryPrice) * 100 : null;
+      if (plPercent !== null) {
+        if (plPercent > bestPL) { bestPL = plPercent; best = h; }
+        if (plPercent < worstPL) { worstPL = plPercent; worst = h; }
+      }
+    }
+  });
+  // Only show best/worst if there are open holdings with valid price data
+  const hasValidOpen = openHoldings.some(h => {
+    const d = info[h.ticker] || {};
+    return d.regularMarketPrice && h.entryPrice;
+  });
+  if (!hasValidOpen) {
+    best = null;
+    worst = null;
+  }
+  const totalPL = totalValue - totalCost;
+  const totalPLPercent = totalCost ? (totalPL / totalCost) * 100 : 0;
+
+  // Recently closed holdings (sold)
+  const closedHoldings = holdings.filter(h => h.sellPrice && h.sellDate)
+    .sort((a, b) => (b.sellDate || '').localeCompare(a.sellDate || ''));
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <Box as="main" minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')} pb={12}>
+      <Center py={16} flexDir="column">
+        <Heading as="h1" size="2xl" fontWeight="extrabold" mb={4} color={useColorModeValue('gray.800', 'gray.100')} letterSpacing="tight">SwingMate</Heading>
+        <Text mb={8} maxW="xl" mx="auto" fontSize="lg" color={useColorModeValue('gray.500', 'gray.300')}>
+          Your minimalist, Dockerized swing trading dashboard. Track trades, manage your watchlist, and monitor your performance with live market data.
+        </Text>
+        <Button as={Link} href="/holdings" colorScheme="blue" size="lg" px={8} py={6} fontWeight="semibold" shadow="md" mb={4}>
+          Add Holding
+        </Button>
+        <Button as={Link} href="#holdings" colorScheme="gray" size="md" px={6} py={4} fontWeight="semibold" shadow="sm">
+          View Open Holdings
+        </Button>
+      </Center>
+      <Container maxW="5xl">
+        {/* Summary Cards */}
+        <SimpleGrid columns={{ base: 1, md: 3, lg: 5 }} spacing={6} mb={10} justifyContent="center">
+          <SummaryCard label="Total Value" value={`$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} color="blue.500" icon={<Icon as={ArrowUpIcon} color="blue.400" boxSize={6} />} />
+          <SummaryCard label="Total P/L" value={<PLValue value={totalPL} percent={totalPLPercent} />} color={totalPL >= 0 ? "green.500" : "red.500"} icon={totalPL >= 0 ? <Icon as={ArrowUpIcon} color="green.400" boxSize={6} /> : <Icon as={ArrowDownIcon} color="red.400" boxSize={6} />} />
+          <SummaryCard label="Open Holdings" value={openHoldings.length} color="gray.500" icon={<Icon as={StarIcon} color="gray.400" boxSize={6} />} />
+          {hasValidOpen ? (
+            <>
+              {best !== null && <SummaryCard label="Best" value={<PLValue value={bestPL} percent={bestPL} ticker={best.ticker} />} color="green.400" icon={<Icon as={StarIcon} color="green.400" boxSize={6} />} />}
+              {worst !== null && <SummaryCard label="Worst" value={<PLValue value={worstPL} percent={worstPL} ticker={worst.ticker} />} color="red.400" icon={<Icon as={WarningIcon} color="red.400" boxSize={6} />} />}
+            </>
+          ) : (
+            <SummaryCard label="Best/Worst" value="No open holdings" color="gray.400" icon={<Icon as={WarningIcon} color="gray.400" boxSize={6} />} />
+          )}
+        </SimpleGrid>
+        {/* Holdings Table */}
+        <Box id="holdings" bg={useColorModeValue('white', 'gray.800')} rounded="2xl" shadow="lg" p={8} overflowX="auto" mb={10}>
+          <Flex justify="space-between" align="center" mb={4}>
+            <Heading as="h2" size="md" color={useColorModeValue('gray.700', 'gray.200')}>Open Holdings</Heading>
+            <Button as={Link} href="/holdings" colorScheme="blue" size="sm">Add Holding</Button>
+          </Flex>
+          <TableContainer>
+            <Table size="sm" variant="simple">
+              <Thead>
+                <Tr bg={useColorModeValue('gray.100', 'gray.700')}>
+                  <Th>Ticker</Th>
+                  <Th>Quantity</Th>
+                  <Th>Entry Price</Th>
+                  <Th>Entry Date</Th>
+                  <Th>Current Price</Th>
+                  <Th>Value</Th>
+                  <Th>P/L</Th>
+                  <Th>P/L %</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {openHoldings.length === 0 ? (
+                  <Tr><Td colSpan={8} textAlign="center" color="gray.400" py={8}>No open holdings.</Td></Tr>
+                ) : openHoldings.map(h => {
+                  const d = info[h.ticker] || {};
+                  const value = d.regularMarketPrice && h.quantity ? d.regularMarketPrice * h.quantity : 0;
+                  const pl = d.regularMarketPrice && h.entryPrice && h.quantity ? (d.regularMarketPrice - h.entryPrice) * h.quantity : 0;
+                  const plPercent = d.regularMarketPrice && h.entryPrice ? ((d.regularMarketPrice - h.entryPrice) / h.entryPrice) * 100 : 0;
+                  return (
+                    <Tr key={h.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                      <Td fontWeight="bold" color="blue.600">{h.ticker}</Td>
+                      <Td>{h.quantity}</Td>
+                      <Td>${h.entryPrice}</Td>
+                      <Td>{h.dateEntry ? h.dateEntry.slice(0,10) : '-'}</Td>
+                      <Td>{d.regularMarketPrice ? `$${d.regularMarketPrice}` : <Text color="red.400">N/A</Text>}</Td>
+                      <Td>{d.regularMarketPrice ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-'}</Td>
+                      <Td fontWeight="bold" color={pl >= 0 ? "green.600" : "red.600"}>{d.regularMarketPrice ? (pl >= 0 ? '+' : '') + `$${pl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-'}</Td>
+                      <Td fontWeight="bold" color={plPercent >= 0 ? "green.600" : "red.600"}>{d.regularMarketPrice ? (plPercent >= 0 ? '+' : '') + plPercent.toFixed(2) + '%' : '-'}</Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </TableContainer>
+        </Box>
+        {/* Recent Activity */}
+        <Box bg={useColorModeValue('white', 'gray.800')} rounded="2xl" shadow="lg" p={8} mb={10}>
+          <Heading as="h2" size="md" mb={6} color={useColorModeValue('gray.700', 'gray.200')}>Recent Activity</Heading>
+          <VStack align="start" spacing={3}>
+            {holdings.slice(0,5).map(h => (
+              <Text key={h.id} color={useColorModeValue('gray.700', 'gray.200')}>
+                <chakra.span fontWeight="bold" color="blue.600" textTransform="uppercase">{h.ticker}</chakra.span> — Bought {h.quantity} @ ${h.entryPrice} on {h.dateEntry?.slice(0,10)}
+                {h.sellPrice && h.sellDate && (
+                  <chakra.span ml={2} fontWeight="semibold" color={h.sellPrice - h.entryPrice >= 0 ? "green.600" : "red.600"}>
+                    Sold @ ${h.sellPrice} on {h.sellDate.slice(0,10)} ({h.sellPrice - h.entryPrice >= 0 ? '▲' : '▼'}{((h.sellPrice - h.entryPrice) / h.entryPrice * 100).toFixed(2)}%)
+                  </chakra.span>
+                )}
+              </Text>
+            ))}
+            {holdings.length === 0 && <Text color="gray.400">No recent activity.</Text>}
+          </VStack>
+        </Box>
+        {/* Recently Closed Holdings */}
+        {closedHoldings.length > 0 && (
+          <Box bg={useColorModeValue('white', 'gray.800')} rounded="2xl" shadow="lg" p={8}>
+            <Heading as="h2" size="md" mb={6} color={useColorModeValue('gray.700', 'gray.200')}>Recently Closed Holdings</Heading>
+            <VStack align="start" spacing={3}>
+              {closedHoldings.slice(0,5).map(h => (
+                <Text key={h.id} color={useColorModeValue('gray.700', 'gray.200')}>
+                  <chakra.span fontWeight="bold" color="blue.600" textTransform="uppercase">{h.ticker}</chakra.span> — Sold {h.quantity} @ ${h.sellPrice} on {h.sellDate?.slice(0,10)}
+                  <chakra.span ml={2} fontWeight="semibold" color={h.sellPrice && h.entryPrice && h.sellPrice - h.entryPrice >= 0 ? "green.600" : "red.600"}>
+                    ({h.sellPrice && h.entryPrice ? (h.sellPrice - h.entryPrice >= 0 ? '▲' : '▼') + (((h.sellPrice - h.entryPrice) / h.entryPrice) * 100).toFixed(2) + '%' : ''})
+                  </chakra.span>
+                </Text>
+              ))}
+            </VStack>
+          </Box>
+        )}
+      </Container>
+    </Box>
+  );
+}
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+function SummaryCard({ label, value, color, icon }: { label: string; value: any; color: string; icon?: any }) {
+  return (
+    <Box
+      bg={useColorModeValue('white', 'gray.700')}
+      borderRadius="2xl"
+      boxShadow="md"
+      p={6}
+      minW="170px"
+      textAlign="center"
+      borderWidth={2}
+      borderColor={color}
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      gap={1}
+    >
+      <Box fontSize="2xl" mb={1}>{icon}</Box>
+      <Text fontSize="xs" fontWeight="medium" color="gray.500">{label}</Text>
+      <Text fontWeight="bold" fontSize="2xl" color={color}>{value}</Text>
+    </Box>
+  );
+}
+
+function PLValue({ value, percent, ticker }: { value: number; percent: number; ticker?: string }) {
+  return (
+    <HStack spacing={1} justify="center">
+      {ticker && <Text fontWeight="bold" color="blue.600">{ticker}</Text>}
+      <Text fontWeight="bold" color={value >= 0 ? "green.600" : "red.600"}>{value >= 0 ? '+' : ''}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+      <Text fontWeight="bold" color={percent >= 0 ? "green.600" : "red.600"}>({percent >= 0 ? '+' : ''}{percent.toFixed(2)}%)</Text>
+    </HStack>
   );
 }

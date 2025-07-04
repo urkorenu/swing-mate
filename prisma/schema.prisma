@@ -1,0 +1,50 @@
+// Prisma schema for SwingMate
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  trades    Trade[]
+  strategies Strategy[]
+  watchlist String[]  // array of ticker symbols
+  settings  Json
+}
+
+model Trade {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  ticker       String
+  entryPrice   Float
+  exitPrice    Float?
+  dateEntry    DateTime
+  dateExit     DateTime?
+  stopLoss     Float?
+  notes        String?
+  strategyUsed String?
+  outcome      String?
+  screenshots  String[] // array of URLs
+  quantity     Float    @default(1)
+  sellPrice    Float?
+  sellDate     DateTime?
+}
+
+model Strategy {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  title       String
+  description String
+  conditions  Json
+  successRate Float?
+  createdAt   DateTime @default(now())
+}
