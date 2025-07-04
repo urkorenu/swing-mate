@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Box, Button, Flex, Heading, Input, Table, Thead, Tbody, Tr, Th, Td, TableContainer, VStack, Text, useColorModeValue } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Input, Table, Thead, Tbody, Tr, Th, Td, TableContainer, VStack, Text, useColorModeValue, FormControl, FormLabel } from "@chakra-ui/react";
 
 interface Holding {
   id: string;
@@ -179,18 +179,36 @@ export default function HoldingsPage() {
           <Text fontWeight={700} fontSize={24} color="blue.600">{avgHold.toFixed(1)}</Text>
         </Box>
       </Flex>
-      <form onSubmit={handleSubmit} style={{ marginBottom: 32, background: "#fff", padding: 24, borderRadius: 12, boxShadow: '0 2px 12px #0001', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: 'wrap' }}>
-          <input name="ticker" value={form.ticker} onChange={handleChange} placeholder="Ticker (AAPL)" required style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16, textTransform: 'uppercase' }} />
-          <input name="entryPrice" value={form.entryPrice} onChange={handleChange} placeholder="Entry Price" type="number" required style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-          <input name="dateEntry" value={form.dateEntry} onChange={handleChange} placeholder="Entry Date" type="date" required style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-          <input name="quantity" value={form.quantity} onChange={handleChange} placeholder="Quantity" type="number" required style={{ flex: 1, minWidth: 100, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-          <input name="sellPrice" value={form.sellPrice} onChange={handleChange} placeholder="Sell Price" type="number" style={{ flex: 1, minWidth: 100, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-          <input name="sellDate" value={form.sellDate} onChange={handleChange} placeholder="Sell Date" type="date" style={{ flex: 1, minWidth: 100, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-        </div>
-        <button type="submit" disabled={loading} style={{ marginTop: 8, background: loading ? '#a5b4fc' : "#2563eb", color: "white", padding: "0.75rem 0", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}>
-          {loading ? <span style={{display:'inline-block',width:18,height:18,border:'2px solid #fff',borderTop:'2px solid #2563eb',borderRadius:'50%',animation:'spin 1s linear infinite'}} /> : "Add Holding"}
-        </button>
+      <form onSubmit={handleSubmit} style={{ marginBottom: 32, background: "#fff", padding: 24, borderRadius: 12, boxShadow: '0 2px 12px #0001', display: 'flex', flexDirection: 'column', gap: 16 }} aria-label="Add or edit holding form">
+        <Flex gap={3} mb={2}>
+          <FormControl id="ticker" isRequired flex={1}>
+            <FormLabel>Ticker</FormLabel>
+            <Input name="ticker" value={editForm.ticker} onChange={handleChange} placeholder="Ticker (AAPL)" required size="md" borderRadius={8} fontSize={16} textTransform="uppercase" aria-label="Ticker" />
+          </FormControl>
+          <FormControl id="entryPrice" isRequired flex={1}>
+            <FormLabel>Entry Price</FormLabel>
+            <Input name="entryPrice" value={editForm.entryPrice} onChange={handleChange} placeholder="Entry Price" type="number" required size="md" borderRadius={8} fontSize={16} aria-label="Entry Price" />
+          </FormControl>
+          <FormControl id="dateEntry" isRequired flex={1}>
+            <FormLabel>Entry Date</FormLabel>
+            <Input name="dateEntry" value={editForm.dateEntry} onChange={handleChange} placeholder="Entry Date" type="date" required size="md" borderRadius={8} fontSize={16} aria-label="Entry Date" />
+          </FormControl>
+        </Flex>
+        {editId && (
+          <Flex gap={3} mb={2}>
+            <FormControl id="sellPrice" flex={1}>
+              <FormLabel>Sell Price</FormLabel>
+              <Input name="sellPrice" value={editForm.sellPrice} onChange={handleChange} placeholder="Sell Price" type="number" size="md" borderRadius={8} fontSize={16} aria-label="Sell Price" />
+            </FormControl>
+            <FormControl id="sellDate" flex={1}>
+              <FormLabel>Sell Date</FormLabel>
+              <Input name="sellDate" value={editForm.sellDate} onChange={handleChange} placeholder="Sell Date" type="date" size="md" borderRadius={8} fontSize={16} aria-label="Sell Date" />
+            </FormControl>
+          </Flex>
+        )}
+        <Button type="submit" isLoading={loading} colorScheme="blue" size="md" borderRadius={8} fontWeight={600} fontSize={16} mt={2} aria-label={editId ? "Save changes" : "Add holding"}>
+          {editId ? "Save Changes" : "Add Holding"}
+        </Button>
       </form>
       <div style={{overflowX:'auto', background:'#fff', borderRadius:12, boxShadow:'0 2px 12px #0001', padding: 0}}>
         <table style={{width:'100%', borderCollapse:'collapse', minWidth:700}}>

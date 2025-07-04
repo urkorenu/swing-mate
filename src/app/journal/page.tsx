@@ -1,154 +1,168 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Box, Button, Flex, Heading, Input, VStack, Text, useColorModeValue } from "@chakra-ui/react";
+import { useEffect, useState, useMemo } from "react";
+import { Box, Flex, Heading, Input, VStack, Text, useColorModeValue, Stat, StatLabel, StatNumber, StatHelpText, SimpleGrid, Select, Button } from "@chakra-ui/react";
 
 interface Trade {
   id: string;
   ticker: string;
   entryPrice: number;
   dateEntry: string;
-}
-
-interface TickerInfo {
-  symbol: string;
-  regularMarketPrice?: number;
+  quantity: number;
+  sellPrice?: number;
+  sellDate?: string;
 }
 
 export default function JournalPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [info, setInfo] = useState<Record<string, TickerInfo>>({});
-  const [form, setForm] = useState({ ticker: "", entryPrice: "", dateEntry: "" });
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ ticker: "", entryPrice: "", dateEntry: "" });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [profitFilter, setProfitFilter] = useState("");
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetch("/api/holdings")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch trades");
+        return res.json();
+      })
       .then((data) => {
         setTrades(data);
-        data.forEach((t: Trade) => fetchInfo(t.ticker));
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Unknown error");
+        setLoading(false);
       });
   }, []);
 
-  const fetchInfo = async (ticker: string) => {
-    const res = await fetch(`/api/alpha?ticker=${ticker}`);
-    const data = await res.json();
-    if (!data.error) {
-      setInfo((prev) => ({ ...prev, [ticker]: {
-        symbol: data.symbol,
-        regularMarketPrice: data.regularMarketPrice,
-      }}));
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const ticker = form.ticker.trim().toUpperCase();
-    const res = await fetch("/api/holdings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, ticker }),
+  // Advanced search and filter
+  const filteredTrades = useMemo(() => {
+    return trades.filter((t) => {
+      const matchesSearch =
+        t.ticker.toLowerCase().includes(search.toLowerCase()) ||
+        t.dateEntry?.includes(search) ||
+        t.sellDate?.includes(search);
+      let matchesStatus = true;
+      if (statusFilter === "open") matchesStatus = !t.sellPrice && !t.sellDate;
+      if (statusFilter === "win") matchesStatus = t.sellPrice !== undefined && t.sellPrice > t.entryPrice;
+      if (statusFilter === "loss") matchesStatus = t.sellPrice !== undefined && t.sellPrice < t.entryPrice;
+      let matchesProfit = true;
+      if (profitFilter === ">0") matchesProfit = t.sellPrice !== undefined && (t.sellPrice - t.entryPrice) * (t.quantity || 1) > 0;
+      if (profitFilter === "<0") matchesProfit = t.sellPrice !== undefined && (t.sellPrice - t.entryPrice) * (t.quantity || 1) < 0;
+      return matchesSearch && matchesStatus && matchesProfit;
     });
-    if (res.ok) {
-      const newTrade = await res.json();
-      setTrades([newTrade, ...trades]);
-      fetchInfo(ticker);
-      setForm({ ticker: "", entryPrice: "", dateEntry: "" });
-    }
-    setLoading(false);
-  };
+  }, [trades, search, statusFilter, profitFilter]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this trade?")) return;
-    await fetch(`/api/holdings?id=${id}`, { method: "DELETE" });
-    setTrades(trades.filter((t) => t.id !== id));
-  };
-
-  const handleEdit = (t: Trade) => {
-    setEditId(t.id);
-    setEditForm({ ticker: t.ticker, entryPrice: String(t.entryPrice), dateEntry: t.dateEntry.slice(0, 10) });
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editId) return;
-    setLoading(true);
-    const ticker = editForm.ticker.trim().toUpperCase();
-    const res = await fetch(`/api/holdings?id=${editId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...editForm, ticker }),
+  const stats = useMemo(() => {
+    const count = trades.length;
+    const closed = trades.filter(t => {
+      const sellPriceNum = t.sellPrice == null || String(t.sellPrice) === "" ? undefined : Number(t.sellPrice);
+      return !(sellPriceNum === undefined || t.sellDate == null || String(t.sellDate).trim() === "");
     });
-    if (res.ok) {
-      const updated = await res.json();
-      setTrades(trades.map((t) => t.id === editId ? updated : t));
-      fetchInfo(ticker);
-      setEditId(null);
-    }
-    setLoading(false);
-  };
+    const wins = closed.filter(t => {
+      const sellPriceNum = t.sellPrice == null || String(t.sellPrice) === "" ? undefined : Number(t.sellPrice);
+      return sellPriceNum !== undefined && sellPriceNum > t.entryPrice;
+    }).length;
+    const losses = closed.filter(t => {
+      const sellPriceNum = t.sellPrice == null || String(t.sellPrice) === "" ? undefined : Number(t.sellPrice);
+      return sellPriceNum !== undefined && sellPriceNum < t.entryPrice;
+    }).length;
+    const avgEntry = count ? trades.reduce((sum, t) => sum + t.entryPrice, 0) / count : 0;
+    const avgPL = closed.length ? closed.reduce((sum, t) => {
+      const sellPriceNum = t.sellPrice == null || String(t.sellPrice) === "" ? undefined : Number(t.sellPrice);
+      return sum + (sellPriceNum !== undefined ? (sellPriceNum - t.entryPrice) * (t.quantity || 1) : 0);
+    }, 0) / closed.length : 0;
+    const winRate = closed.length ? (wins / closed.length) * 100 : 0;
+    return { count, avgEntry, avgPL, winRate, wins, losses, closed: closed.length };
+  }, [trades]);
 
   return (
-    <Box maxW="520px" mx="auto" py={8} fontFamily="Inter, Arial, sans-serif">
+    <Box maxW="700px" mx="auto" py={8} fontFamily="Inter, Arial, sans-serif">
       <Heading as="h2" size="xl" fontWeight={700} mb={8} textAlign="center" letterSpacing={-1}>Trade Journal</Heading>
-      <form onSubmit={handleSubmit} style={{ marginBottom: 32, background: "#fff", padding: 24, borderRadius: 12, boxShadow: '0 2px 12px #0001', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Flex gap={3} mb={2}>
-          <Input name="ticker" value={form.ticker} onChange={handleChange} placeholder="Ticker (AAPL)" required flex={1} size="md" borderRadius={8} fontSize={16} textTransform="uppercase" />
-          <Input name="entryPrice" value={form.entryPrice} onChange={handleChange} placeholder="Entry Price" type="number" required flex={1} size="md" borderRadius={8} fontSize={16} />
-          <Input name="dateEntry" value={form.dateEntry} onChange={handleChange} placeholder="Entry Date" type="date" required flex={1} size="md" borderRadius={8} fontSize={16} />
-        </Flex>
-        <Button type="submit" isLoading={loading} colorScheme="blue" size="md" borderRadius={8} fontWeight={600} fontSize={16} mt={2}>
-          Buy (Add to Holdings)
-        </Button>
-      </form>
-      {trades.length === 0 ? (
-        <Box bg="gray.50" borderRadius={12} boxShadow="md" p={8} textAlign="center" color="gray.400">
-          No trades yet. Start by buying your first stock.
-        </Box>
-      ) : (
-        <VStack as="ul" spacing={4} align="stretch">
-          {trades.map((t) => {
-            const d = info[t.ticker] || {};
-            const profit = d.regularMarketPrice && t.entryPrice ? ((d.regularMarketPrice - t.entryPrice) / t.entryPrice) * 100 : undefined;
-            return (
-              <Box as="li" key={t.id} bg={profit === undefined ? 'gray.50' : profit >= 0 ? 'green.50' : 'red.50'} borderRadius={12} boxShadow="md" p={6} display="flex" alignItems="center" gap={6} borderWidth={1} borderColor="gray.100">
-                <Box flex={1}>
-                  <Text fontWeight={600} fontSize={18} letterSpacing={-0.5}>{t.ticker}</Text>
-                  <Text fontSize={15} color="gray.600" mt={1}>Entry: <b>${t.entryPrice}</b> | Date: {t.dateEntry?.slice(0, 10)}</Text>
-                  {d.regularMarketPrice && <Text fontSize={15} color="blue.600" mt={1}>Current: <b>${d.regularMarketPrice}</b></Text>}
-                  {profit !== undefined && <Text fontSize={15} color={profit >= 0 ? 'green.600' : 'red.600'} mt={1}>Profit: <b>{profit.toFixed(2)}%</b></Text>}
-                  {!d.regularMarketPrice && <Text color="red.400" fontSize={14} mt={1}>Could not load Alpha Vantage data for this ticker.</Text>}
-                </Box>
-              </Box>
-            );
-          })}
-        </VStack>
+      <Text mb={6} color="gray.500" textAlign="center">Here you can review, search, and analyze your trading history.</Text>
+      {/* Advanced Search Bar */}
+      <Flex gap={3} mb={8} flexWrap="wrap" align="center" justify="center">
+        <Input placeholder="Search by ticker or date" value={search} onChange={e => setSearch(e.target.value)} maxW={200} />
+        <Select placeholder="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} maxW={150}>
+          <option value="open">Open</option>
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+        </Select>
+        <Select placeholder="Profit" value={profitFilter} onChange={e => setProfitFilter(e.target.value)} maxW={150}>
+          <option value=">0">Profit</option>
+          <option value="<0">Loss</option>
+        </Select>
+        <Button onClick={() => { setSearch(""); setStatusFilter(""); setProfitFilter(""); }} variant="outline" size="sm">Clear</Button>
+      </Flex>
+      {loading && <Flex justify="center" py={8}><Text color="gray.400">Loading trades...</Text></Flex>}
+      {error && <Text color="red.500" textAlign="center" py={4}>{error}</Text>}
+      {!loading && !error && (
+        <>
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} my={8}>
+            <Stat>
+              <StatLabel>Total Trades</StatLabel>
+              <StatNumber>{stats.count}</StatNumber>
+              <StatHelpText>All time</StatHelpText>
+            </Stat>
+            <Stat>
+              <StatLabel>Closed Trades</StatLabel>
+              <StatNumber>{stats.closed}</StatNumber>
+              <StatHelpText>All time</StatHelpText>
+            </Stat>
+            <Stat>
+              <StatLabel>Win Rate</StatLabel>
+              <StatNumber>{stats.winRate.toFixed(1)}%</StatNumber>
+              <StatHelpText>Closed trades</StatHelpText>
+            </Stat>
+            <Stat>
+              <StatLabel>Average Entry Price</StatLabel>
+              <StatNumber>${stats.avgEntry.toLocaleString(undefined, { maximumFractionDigits: 2 })}</StatNumber>
+              <StatHelpText>All trades</StatHelpText>
+            </Stat>
+            <Stat>
+              <StatLabel>Average P/L (Closed)</StatLabel>
+              <StatNumber color={stats.avgPL >= 0 ? 'green.600' : 'red.600'}>{stats.avgPL >= 0 ? '+' : ''}${stats.avgPL.toLocaleString(undefined, { maximumFractionDigits: 2 })}</StatNumber>
+              <StatHelpText>Closed trades</StatHelpText>
+            </Stat>
+          </SimpleGrid>
+          <VStack as="ul" spacing={4} align="stretch">
+            {filteredTrades.length === 0 ? (
+              <Text color="gray.400" textAlign="center">No trades found.</Text>
+            ) : (
+              filteredTrades.map((t) => {
+                const sellPriceNum = t.sellPrice == null || String(t.sellPrice) === "" ? undefined : Number(t.sellPrice);
+                const isOpen = sellPriceNum === undefined || t.sellDate == null || String(t.sellDate) === "";
+                const isClosed = !isOpen;
+                let isWin = false, isLoss = false, pl = 0, plPercent = 0;
+                if (isClosed && sellPriceNum !== undefined) {
+                  isWin = sellPriceNum > t.entryPrice;
+                  isLoss = sellPriceNum < t.entryPrice;
+                  pl = (sellPriceNum - t.entryPrice) * (t.quantity || 1);
+                  plPercent = ((sellPriceNum - t.entryPrice) / t.entryPrice) * 100;
+                }
+                return (
+                  <Box as="li" key={t.id} bg={isOpen ? 'blue.50' : isWin ? 'green.50' : isLoss ? 'red.50' : 'gray.50'} borderRadius={12} boxShadow="md" p={6} display="flex" alignItems="center" gap={6} borderWidth={1} borderColor="gray.100">
+                    <Box flex={1}>
+                      <Text fontWeight={600} fontSize={18} letterSpacing={-0.5}>{t.ticker}</Text>
+                      <Text fontSize={15} color="gray.600" mt={1}>Entry: <b>${t.entryPrice}</b> | Date: {t.dateEntry?.slice(0, 10)}</Text>
+                      {isOpen && <Text fontSize={15} color="blue.600" mt={1}>Still in trade</Text>}
+                      {isClosed && isWin && (
+                        <Text fontSize={15} color="green.600" mt={1}>Win: +${pl.toLocaleString(undefined, { maximumFractionDigits: 2 })} ({plPercent.toFixed(2)}%)</Text>
+                      )}
+                      {isClosed && isLoss && (
+                        <Text fontSize={15} color="red.600" mt={1}>Loss: -${Math.abs(pl).toLocaleString(undefined, { maximumFractionDigits: 2 })} ({plPercent.toFixed(2)}%)</Text>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })
+            )}
+          </VStack>
+        </>
       )}
-      {editId && (
-        <form onSubmit={handleEditSubmit} style={{ marginTop: 32, background: "#fff", padding: 24, borderRadius: 12, boxShadow: '0 2px 12px #0001', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: "flex", gap: 12 }}>
-            <input name="ticker" value={editForm.ticker} onChange={handleEditChange} placeholder="Ticker (AAPL)" required style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16, textTransform: 'uppercase' }} />
-            <input name="entryPrice" value={editForm.entryPrice} onChange={handleEditChange} placeholder="Entry Price" type="number" required style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-            <input name="dateEntry" value={editForm.dateEntry} onChange={handleEditChange} placeholder="Entry Date" type="date" required style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16 }} />
-          </div>
-          <button type="submit" disabled={loading} style={{ marginTop: 8, background: loading ? '#a5b4fc' : "#2563eb", color: "white", padding: "0.75rem 0", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}>
-            {loading ? <span style={{display:'inline-block',width:18,height:18,border:'2px solid #fff',borderTop:'2px solid #2563eb',borderRadius:'50%',animation:'spin 1s linear infinite'}} /> : "Save Changes"}
-          </button>
-        </form>
-      )}
-      <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      `}</style>
     </Box>
   );
 } 

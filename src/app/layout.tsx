@@ -28,7 +28,6 @@ export default function RootLayout({
   const navItems = [
     { label: 'Home', href: '/' },
     { label: 'Holdings', href: '/holdings' },
-    { label: 'Watchlist', href: '/watchlist' },
     { label: 'Journal', href: '/journal' },
   ];
   return (
