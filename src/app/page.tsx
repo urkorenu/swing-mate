@@ -29,7 +29,7 @@ import {
   ListItem,
   ListIcon
 } from "@chakra-ui/react";
-import { ArrowUpIcon, ArrowDownIcon, StarIcon, WarningIcon } from "@chakra-ui/icons";
+import { ArrowUpIcon, ArrowDownIcon, StarIcon, WarningIcon, TriangleUpIcon, TriangleDownIcon } from "@chakra-ui/icons";
 
 interface Holding {
   id: string;
@@ -51,6 +51,8 @@ export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [info, setInfo] = useState<Record<string, TickerInfo>>({});
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<string>("ticker");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     fetch("/api/holdings")
@@ -73,7 +75,52 @@ export default function Dashboard() {
   };
 
   // Only open holdings for best/worst/summary
-  const openHoldings = holdings.filter(h => !h.sellPrice && !h.sellDate);
+  let openHoldings = holdings.filter(h => !h.sellPrice && !h.sellDate);
+  // Sorting logic
+  openHoldings = [...openHoldings].sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+    switch (sortBy) {
+      case "ticker":
+        aVal = a.ticker.toUpperCase();
+        bVal = b.ticker.toUpperCase();
+        break;
+      case "quantity":
+        aVal = a.quantity;
+        bVal = b.quantity;
+        break;
+      case "entryPrice":
+        aVal = a.entryPrice;
+        bVal = b.entryPrice;
+        break;
+      case "dateEntry":
+        aVal = a.dateEntry;
+        bVal = b.dateEntry;
+        break;
+      case "currentPrice":
+        aVal = (info[a.ticker]?.regularMarketPrice ?? 0);
+        bVal = (info[b.ticker]?.regularMarketPrice ?? 0);
+        break;
+      case "value":
+        aVal = (info[a.ticker]?.regularMarketPrice ?? 0) * a.quantity;
+        bVal = (info[b.ticker]?.regularMarketPrice ?? 0) * b.quantity;
+        break;
+      case "pl":
+        aVal = (info[a.ticker]?.regularMarketPrice ?? 0 - a.entryPrice) * a.quantity;
+        bVal = (info[b.ticker]?.regularMarketPrice ?? 0 - b.entryPrice) * b.quantity;
+        break;
+      case "plPercent":
+        aVal = a.entryPrice ? ((info[a.ticker]?.regularMarketPrice ?? 0 - a.entryPrice) / a.entryPrice) * 100 : 0;
+        bVal = b.entryPrice ? ((info[b.ticker]?.regularMarketPrice ?? 0 - b.entryPrice) / b.entryPrice) * 100 : 0;
+        break;
+      default:
+        aVal = a.ticker.toUpperCase();
+        bVal = b.ticker.toUpperCase();
+    }
+    if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
   let totalValue = 0;
   let totalCost = 0;
   let best: Holding | null = null;
@@ -112,6 +159,20 @@ export default function Dashboard() {
   // Recently closed holdings (sold)
   const closedHoldings = holdings.filter(h => h.sellPrice && h.sellDate)
     .sort((a, b) => (b.sellDate || '').localeCompare(a.sellDate || ''));
+
+  function handleSort(column: string) {
+    if (sortBy === column) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortDir("asc");
+    }
+  }
+
+  function renderSortIcon(column: string) {
+    if (sortBy !== column) return null;
+    return sortDir === "asc" ? <TriangleUpIcon ml={1} boxSize={3} /> : <TriangleDownIcon ml={1} boxSize={3} />;
+  }
 
   return (
     <Box as="main" minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')} pb={12}>
@@ -152,14 +213,14 @@ export default function Dashboard() {
             <Table size="sm" variant="simple">
               <Thead>
                 <Tr bg={useColorModeValue('gray.100', 'gray.700')}>
-                  <Th>Ticker</Th>
-                  <Th>Quantity</Th>
-                  <Th>Entry Price</Th>
-                  <Th>Entry Date</Th>
-                  <Th>Current Price</Th>
-                  <Th>Value</Th>
-                  <Th>P/L</Th>
-                  <Th>P/L %</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("ticker")}>Ticker {renderSortIcon("ticker")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("quantity")}>Quantity {renderSortIcon("quantity")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("entryPrice")}>Entry Price {renderSortIcon("entryPrice")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("dateEntry")}>Entry Date {renderSortIcon("dateEntry")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("currentPrice")}>Current Price {renderSortIcon("currentPrice")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("value")}>Value {renderSortIcon("value")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("pl")}>P/L {renderSortIcon("pl")}</Th>
+                  <Th cursor="pointer" onClick={() => handleSort("plPercent")}>P/L % {renderSortIcon("plPercent")}</Th>
                 </Tr>
               </Thead>
               <Tbody>
