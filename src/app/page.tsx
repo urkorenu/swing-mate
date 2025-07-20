@@ -1,14 +1,9 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Button,
-  Center,
-  Container,
   Flex,
-  Heading,
-  Stack,
   Text,
   Table,
   Thead,
@@ -17,20 +12,9 @@ import {
   Th,
   Td,
   TableContainer,
-  Badge,
   SimpleGrid,
   VStack,
   HStack,
-  Divider,
-  Icon,
-  chakra,
-  List,
-  ListItem,
-  ListIcon,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
   Input,
   FormControl,
   FormLabel,
@@ -199,17 +183,17 @@ export default function HomePage() {
     }).filter(x => typeof x === 'number' && !isNaN(x));
     const avgPLOpen = openPLs.length ? openPLs.reduce((a, b) => Number(a) + Number(b), 0) / openPLs.length : 0;
     // Average P/L (Closed): average of (sellPrice - entryPrice) * quantity for closed trades
-    const closedPLs = closed.map(h => {
+    const closedPLs: number[] = closed.map(h => {
       const sellPriceNum = h.sellPrice == null || String(h.sellPrice) === "" ? undefined : Number(h.sellPrice);
       return sellPriceNum !== undefined ? (sellPriceNum - h.entryPrice) * (h.quantity || 1) : undefined;
-    }).filter(x => typeof x === 'number' && !isNaN(x));
-    const avgPLClosed = closedPLs.length ? closedPLs.reduce((a, b) => Number(a) + Number(b), 0) / closedPLs.length : 0;
+    }).filter((x): x is number => typeof x === 'number' && !isNaN(x));
+    const avgPLClosed = closedPLs.length > 0 ? closedPLs.reduce((a, b) => a + b, 0) / closedPLs.length : 0;
     // Average P/L (Closed) %: average of ((sellPrice - entryPrice) / entryPrice) * 100 for closed trades
-    const closedPLPercents = closed.map(h => {
+    const closedPLPercents: number[] = closed.map(h => {
       const sellPriceNum = h.sellPrice == null || String(h.sellPrice) === "" ? undefined : Number(h.sellPrice);
       return sellPriceNum !== undefined ? ((sellPriceNum - h.entryPrice) / h.entryPrice) * 100 : undefined;
-    }).filter(x => typeof x === 'number' && !isNaN(x));
-    const avgPLClosedPct = closedPLPercents.length ? closedPLPercents.reduce((a, b) => Number(a) + Number(b), 0) / closedPLPercents.length : 0;
+    }).filter((x): x is number => typeof x === 'number' && !isNaN(x));
+    const avgPLClosedPct = closedPLPercents.length > 0 ? closedPLPercents.reduce((a, b) => a + b, 0) / closedPLPercents.length : 0;
     // Best and worst trade (by P/L)
     let bestPL = -Infinity, worstPL = Infinity;
     closed.forEach(h => {
